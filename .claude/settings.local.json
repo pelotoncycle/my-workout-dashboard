@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:app.swaggerhub.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:hackmd.io)",
+      "WebFetch(domain:www.reddit.com)",
+      "WebFetch(domain:api.onepeloton.com)",
+      "Bash(curl:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(TOKEN=\"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkU3YTdiRWp6UGhmT1RZTUZTZUkwTSJ9.eyJodHRwOi8vb25lcGVsb3Rvbi5jb20vdXNlcl9pZCI6IjFlZmVkYzYyZDZiNDQ5M2JhY2E3YjI0ZTg3MzdhMDQ2IiwiaXNzIjoiaHR0cHM6Ly9hdXRoLm9uZXBlbG90b24uY29tLyIsInN1YiI6ImF1dGgwfDFlZmVkYzYyZDZiNDQ5M2JhY2E3YjI0ZTg3MzdhMDQ2IiwiYXVkIjpbImh0dHBzOi8vYXBpLm9uZXBlbG90b24uY29tLyIsImh0dHBzOi8vcGVsb3Rvbi1wcm9kLm9uZXBlbG90b24uYXV0aDAuY29tL3VzZXJpbmZvIl0sImlhdCI6MTc3MjEzMjI2NiwiZXhwIjoxNzcyMzA1MDY2LCJzY29wZSI6Im9wZW5pZCBwZWxvdG9uLWFwaS5tZW1iZXJzOmRlZmF1bHQgb2ZmbGluZV9hY2Nlc3MiLCJhenAiOiJXVm9KeFZEZFBvRng0Uk5ld3Z2ZzZjaDJtWjdid25zTSJ9.jE4uDBaJ3EbeRMuWv1c39TpvSK5Lip0Ri05jqMqUVqGU2nXawW3lUqZNRS9zJR1c-cSUHPSx1lZ0TmO7cq_k4-YlgBpm1kanwyyMs-p0fbP2H4DUAm5AgnoKvWC60N_2GJY975iWAf5o3ktWAeKZQxMYeD6xNtgtDJzeKYSEgvBdVJxf4nF2FOQGLn2ukEN7pAsRWsqpK3M52QwIN4wJXST-VOSYZWKF0IuVOswbbIrOpsBEJlbgDgPnJppUeIksKOHeoDKTyPIIVTB_XOvX836K3rD2QFUPJ7BkjUKOf0l2fJeiNE3q3L27GqWeqVEIcnZl0hlgr_r09uBsORxDow\")",
+      "Bash(USER_ID=\"1efedc62d6b4493baca7b24e8737a046\":*)",
+      "Bash(python3:*)",
+      "Bash(npx vite build:*)",
+      "Bash(lsof:*)",
+      "Bash(fc:*)",
+      "Bash(grep:*)",
+      "Bash(awk:*)",
+      "Bash(npx:*)",
+      "Bash(node -e:*)",
+      "Bash(npm run build:*)",
+      "Bash(git -C /Users/crystal.qin/Downloads/peloton-dashboard log --oneline --all)",
+      "Bash(find:*)"
+    ]
+  }
+}
