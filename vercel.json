@@ -1,0 +1,9 @@
+json
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://api.onepeloton.com/api/:path*"
+    }
+  ]
+}
