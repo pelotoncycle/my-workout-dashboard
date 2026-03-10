@@ -2252,72 +2252,147 @@ const FitnessDetails = ({ workouts, workoutData, maxHR, hrZones, totalWorkoutCou
   );
 };
 
+const BIO_TABS = ['Vitals', 'Sleep', 'Nutrition'];
+
 const BodyMetrics = ({ userId }) => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]       = useState(true);
   const [deviceName, setDeviceName] = useState(null);
-  const [metrics, setMetrics] = useState(null);
+  const [bio, setBio]               = useState(null);
   const [noConnection, setNoConnection] = useState(false);
+  const [activeTab, setActiveTab]   = useState('Vitals');
 
   useEffect(() => {
     if (!userId) { setNoConnection(true); setLoading(false); return; }
     setLoading(true);
     setNoConnection(false);
-    setMetrics(null);
+    setBio(null);
     setDeviceName(null);
-    const fetchData = async () => {
-      const bio = await getPeloHubBioData(userId);
-      if (!bio.platform) { setNoConnection(true); setLoading(false); return; }
-      setDeviceName(bio.displayName);
-      setMetrics(bio);
+    getPeloHubBioData(userId).then((data) => {
+      if (!data.platform) { setNoConnection(true); } else { setDeviceName(data.displayName); setBio(data); }
       setLoading(false);
-    };
-    fetchData();
+    });
   }, [userId]);
 
-  // Safely extract a metric; fall back to —
-  const get = (field) => {
-    const val = metrics?.[field];
+  // Return display value or '—'
+  const v = (field) => {
+    const val = bio?.[field];
     return (val !== undefined && val !== null) ? val : '—';
   };
 
+  const unavailable = (label, unit = '', note = 'Not available from device') => (
+    <MetricTile label={label} value="—" unit={unit} subtext={note} />
+  );
+
+  const tabBtn = (tab) => (
+    <button
+      key={tab}
+      onClick={() => setActiveTab(tab)}
+      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+        activeTab === tab ? 'bg-purple-600/70 text-white' : 'text-gray-400 hover:text-gray-200'
+      }`}
+    >
+      {tab}
+    </button>
+  );
+
+  const noConnectionState = (
+    <div className="flex flex-col items-center justify-center h-48 gap-3 text-center px-4">
+      <p className="text-gray-400 text-sm font-medium">No connected device</p>
+      <p className="text-gray-600 text-xs max-w-[220px] leading-relaxed">
+        Connect Whoop or Garmin via fit-feed to sync biology data here.
+      </p>
+    </div>
+  );
+
   return (
     <GlassCard className="h-full">
-      <div className="flex justify-between items-start mb-6">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 border border-purple-500/20"><Activity size={20} /></div>
+          <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 border border-purple-500/20">
+            <Activity size={20} />
+          </div>
           <div>
             <h2 className="text-xl font-bold text-white">Body Metrics</h2>
             {loading ? (
               <p className="text-xs text-gray-500 mt-0.5">Loading…</p>
             ) : deviceName ? (
-              <p className="text-xs text-purple-300 mt-0.5 font-medium flex items-center gap-1">
-                Synced from {deviceName}
-              </p>
+              <p className="text-xs text-purple-300 mt-0.5 font-medium">Synced from {deviceName} · Last 7 days</p>
             ) : (
-              <p className="text-xs text-gray-500 mt-0.5">No connected device set up</p>
+              <p className="text-xs text-gray-500 mt-0.5">No connected device</p>
             )}
           </div>
         </div>
-        <button className="text-xs text-gray-500 hover:text-white flex items-center gap-1">View More <ChevronRight size={12} /></button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-4">
+        {BIO_TABS.map(tabBtn)}
+      </div>
+
+      {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center h-40 text-gray-500 text-sm">Loading body metrics…</div>
-      ) : noConnection ? (
-        <div className="flex flex-col items-center justify-center h-40 gap-3 text-center px-4">
-          <p className="text-gray-400 text-sm font-medium">No connected device set up</p>
-          <p className="text-gray-600 text-xs max-w-[220px] leading-relaxed">
-            Connect Whoop, Garmin, or Fitbit via the Peloton app to sync body metrics here.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
-          <MetricTile label="VO2 Max" value={get('vo2_max')} unit="ml/kg" subtext="" />
-          <MetricTile label="Resting HR" value={get('resting_heart_rate')} unit="bpm" subtext="Last 7 Days" />
-          <MetricTile label="HR Recovery" value={get('hr_recovery')} unit="bpm" subtext="After 1 min" />
-          <MetricTile label="HRV" value={get('hrv')} unit="ms" subtext="Nightly Avg" />
-          <MetricTile label="Weight" value={get('weight')} unit="lbs" subtext="" />
-          <MetricTile label="Sleep Score" value={get('sleep_score')} unit="" subtext="" />
+        <div className="flex items-center justify-center h-48 text-gray-500 text-sm">Loading…</div>
+      ) : noConnection ? noConnectionState : (
+        <div className="animate-in fade-in duration-300">
+
+          {/* ── Vitals ── */}
+          {activeTab === 'Vitals' && (
+            <div className="grid grid-cols-2 gap-3">
+              {bio?.vo2_max != null
+                ? <MetricTile label="VO2 Max"          value={v('vo2_max')}           unit="ml/kg/min" subtext="7-day avg" />
+                : unavailable('VO2 Max', 'ml/kg/min')}
+              <MetricTile label="Resting HR"            value={v('resting_heart_rate')} unit="bpm"       subtext="7-day avg" />
+              {unavailable('HR Recovery', 'bpm', 'Post-workout only')}
+              <MetricTile label="HRV"                   value={v('hrv')}               unit="ms"        subtext="7-day avg" />
+              {bio?.weight != null
+                ? <MetricTile label="Weight"            value={v('weight')}            unit="lbs"       subtext="" />
+                : unavailable('Weight', 'lbs')}
+              {bio?.muscle_mass != null
+                ? <MetricTile label="Muscle Mass"       value={v('muscle_mass')}       unit="lbs"       subtext="" />
+                : unavailable('Muscle Mass', 'lbs')}
+              <MetricTile label="Blood Oxygen"          value={v('blood_oxygen')}      unit="%"         subtext="7-day avg" />
+              <MetricTile label="Respiratory Rate"      value={v('respiratory_rate')}  unit="brpm"      subtext="7-day avg" />
+              {bio?.cycle_phase != null
+                ? <MetricTile label="Cycle Phase"       value={v('cycle_phase')}       unit=""          subtext="" />
+                : unavailable('Cycle Phase', '', 'Whoop only')}
+              {bio?.body_temperature != null
+                ? <MetricTile label="Body Temp"         value={v('body_temperature')}  unit="°F"        subtext="Skin temp" />
+                : unavailable('Body Temp', '°F', 'Whoop only')}
+            </div>
+          )}
+
+          {/* ── Sleep ── */}
+          {activeTab === 'Sleep' && (
+            <div className="grid grid-cols-2 gap-3">
+              <MetricTile label="Sleep Score"       value={v('sleep_score')}       unit=""   subtext="Last night" />
+              <MetricTile label="Duration"          value={v('sleep_duration')}    unit=""   subtext="Last night" />
+              <MetricTile label="Light Sleep"       value={v('sleep_light')}       unit=""   subtext="Last night" />
+              <MetricTile label="REM Sleep"         value={v('sleep_rem')}         unit=""   subtext="Last night" />
+              <MetricTile label="Deep Sleep"        value={v('sleep_deep')}        unit=""   subtext="Last night" />
+              <MetricTile label="Time Awake"        value={v('sleep_awake')}       unit=""   subtext="Last night" />
+              {bio?.sleep_efficiency != null
+                ? <MetricTile label="Efficiency"    value={v('sleep_efficiency')}  unit="%"  subtext="Last night" />
+                : unavailable('Efficiency', '%', 'Whoop only')}
+              {bio?.sleep_consistency != null
+                ? <MetricTile label="Consistency"   value={v('sleep_consistency')} unit="%"  subtext="Last night" />
+                : unavailable('Consistency', '%', 'Whoop only')}
+              <MetricTile label="Disturbances"      value={v('sleep_disturbances')} unit=""  subtext="Last night" />
+              <MetricTile label="Sleep Cycles"      value={v('sleep_cycles')}      unit=""   subtext="Last night" />
+            </div>
+          )}
+
+          {/* ── Nutrition ── */}
+          {activeTab === 'Nutrition' && (
+            <div className="grid grid-cols-2 gap-3">
+              {unavailable('Hydration', 'oz', 'Not in fit-feed')}
+              {unavailable('Protein',   'g',  'Not in fit-feed')}
+              {unavailable('Carbs',     'g',  'Not in fit-feed')}
+              {unavailable('Fat',       'g',  'Not in fit-feed')}
+              {unavailable('Calories',  'kcal','Not in fit-feed')}
+              {unavailable('Fiber',     'g',  'Not in fit-feed')}
+            </div>
+          )}
         </div>
       )}
     </GlassCard>
