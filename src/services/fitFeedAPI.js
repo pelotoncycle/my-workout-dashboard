@@ -2,17 +2,17 @@ import axios from 'axios';
 
 const FIT_FEED_BASE = '/fit-feed';
 
-// All platforms confirmed to exist on /v2/check (return 401 when unauthenticated)
+// Confirmed-working platforms on /v2/check — return 404 (user not connected) when
+// authenticated but not connected, and 401 (invalid token) for bad tokens.
+// oura, apple_health, polar were tested and return 400 "Missing Authorization Header"
+// through the Vercel proxy, indicating they are not yet production-ready endpoints.
 export const PLATFORM_DISPLAY_NAMES = {
   garmin: 'Garmin',
   fitbit: 'Fitbit',
   whoop: 'Whoop',
-  oura: 'Oura Ring',
-  apple_health: 'Apple Health',
-  polar: 'Polar',
 };
 
-const SUPPORTED_PLATFORMS = ['garmin', 'fitbit', 'whoop', 'oura', 'apple_health', 'polar'];
+const SUPPORTED_PLATFORMS = ['garmin', 'fitbit', 'whoop'];
 
 const getFitFeedToken = () => localStorage.getItem('fitfeed_token');
 
