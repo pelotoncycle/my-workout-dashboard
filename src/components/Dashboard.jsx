@@ -49,7 +49,7 @@ import {
   Mountain,
   Award
 } from 'lucide-react';
-import { getUserProfile, getAuthToken, getAllWorkoutHistory, enrichWorkoutsWithPerformance, enrichStrengthDetails, calculateMetrics, searchUsers, getUserGoals, getUserTargets, setUserGoal as updateUserGoalStorage, setUserTargets as updateUserTargetsStorage, AVAILABLE_GOALS, calculateWeeklyProgress, calculateWeeklyHistory, filterWorkoutsByCategory, filterWorkoutsByPeriod, calculateTimeByDiscipline, calculateTrainingLoad, calculateActiveDaysCalendar, calculateCaloriesInPeriod, calculateHRZoneBalance, calculateCardioFocus, calculateStreaks, aggregateWorkoutsForChart, aggregateAvgMetricForChart, deriveMaxHR, deriveHRZones, CARDIO_SUBDISCIPLINES, filterWorkoutsBySubDiscipline, calculateDistance, calculateAvgPaceSpeed, calculateAvgOutput, calculatePersonalRecords, estimateCriticalPace, calculateInclineStats, calculateElevationGain, estimateFTP, calculateCadenceStats, calculateResistanceStats, calculatePowerRatio, estimateRowingFTP, calculateStrokeStats, calculateAvgStrokeOutput, calculatePaceSplitByDiscipline, calculateStrengthMetrics, estimateMovement10RM } from '../services/pelotonAPI';
+import { getUserProfile, getAllWorkoutHistory, enrichWorkoutsWithPerformance, enrichStrengthDetails, calculateMetrics, searchUsers, getUserGoals, getUserTargets, setUserGoal as updateUserGoalStorage, setUserTargets as updateUserTargetsStorage, AVAILABLE_GOALS, calculateWeeklyProgress, calculateWeeklyHistory, filterWorkoutsByCategory, filterWorkoutsByPeriod, calculateTimeByDiscipline, calculateTrainingLoad, calculateActiveDaysCalendar, calculateCaloriesInPeriod, calculateHRZoneBalance, calculateCardioFocus, calculateStreaks, aggregateWorkoutsForChart, aggregateAvgMetricForChart, deriveMaxHR, deriveHRZones, CARDIO_SUBDISCIPLINES, filterWorkoutsBySubDiscipline, calculateDistance, calculateAvgPaceSpeed, calculateAvgOutput, calculatePersonalRecords, estimateCriticalPace, calculateInclineStats, calculateElevationGain, estimateFTP, calculateCadenceStats, calculateResistanceStats, calculatePowerRatio, estimateRowingFTP, calculateStrokeStats, calculateAvgStrokeOutput, calculatePaceSplitByDiscipline, calculateStrengthMetrics, estimateMovement10RM } from '../services/pelotonAPI';
 import { getConnectedDevice, getDeviceMetrics } from '../services/fitFeedAPI';
 
 // --- UI Primitives (Liquid Glass Style) ---
@@ -2262,13 +2262,11 @@ const BodyMetrics = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = getAuthToken();
-        if (!token) { setNoConnection(true); setLoading(false); return; }
-        const { connectedPlatform: platform, displayName } = await getConnectedDevice(token);
+        const { connectedPlatform: platform, displayName } = await getConnectedDevice();
         if (!platform) { setNoConnection(true); setLoading(false); return; }
         setConnectedPlatform(platform);
         setDeviceName(displayName);
-        const data = await getDeviceMetrics(token, platform);
+        const data = await getDeviceMetrics(platform);
         setMetrics(data);
       } catch (err) {
         console.error('Fit-feed body metrics error:', err);
@@ -2398,12 +2396,10 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
   useEffect(() => {
     const fetchDevice = async () => {
       try {
-        const token = getAuthToken();
-        if (!token) return;
-        const { connectedPlatform: platform, displayName } = await getConnectedDevice(token);
+        const { connectedPlatform: platform, displayName } = await getConnectedDevice();
         if (!platform) return;
         setDeviceName(displayName);
-        const data = await getDeviceMetrics(token, platform);
+        const data = await getDeviceMetrics(platform);
         setDeviceMetrics(data);
       } catch (err) {
         console.error('Fit-feed scorecard error:', err);
