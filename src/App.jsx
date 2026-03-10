@@ -9,10 +9,8 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if token exists in localStorage
     const storedToken = localStorage.getItem('peloton_token');
     const storedUser = localStorage.getItem('peloton_user');
-
     if (storedToken && storedUser) {
       setAuthToken(storedToken);
       setCurrentUser(JSON.parse(storedUser));
@@ -21,22 +19,22 @@ function App() {
     setLoading(false);
   }, []);
 
-  const handleLogin = async (token) => {
+  const handleLogin = async (token, fitFeedToken) => {
     try {
       setAuthToken(token);
-
-      // Fetch current user info
       const userData = await getMe();
-
-      // Store token and user info
       localStorage.setItem('peloton_token', token);
       localStorage.setItem('peloton_user', JSON.stringify(userData));
-
+      if (fitFeedToken) {
+        localStorage.setItem('fitfeed_token', fitFeedToken);
+      } else {
+        localStorage.removeItem('fitfeed_token');
+      }
       setCurrentUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Login failed:', error);
-      alert('Authentication failed. Please check your token and try again.');
+      alert('Authentication failed. Please check your Peloton token and try again.');
       throw error;
     }
   };
@@ -44,6 +42,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('peloton_token');
     localStorage.removeItem('peloton_user');
+    localStorage.removeItem('fitfeed_token');
     setAuthToken(null);
     setCurrentUser(null);
     setIsAuthenticated(false);
