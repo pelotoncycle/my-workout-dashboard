@@ -2,68 +2,102 @@ import axios from 'axios';
 
 const FIT_FEED_BASE = '/fit-feed';
 
-// Confirmed-working platforms on /v2/check — return 404 (user not connected) when
-// authenticated but not connected, and 401 (invalid token) for bad tokens.
-// oura, apple_health, polar were tested and return 400 "Missing Authorization Header"
-// through the Vercel proxy, indicating they are not yet production-ready endpoints.
-export const PLATFORM_DISPLAY_NAMES = {
-  garmin: 'Garmin',
-  fitbit: 'Fitbit',
-  whoop: 'Whoop',
-};
-
-const SUPPORTED_PLATFORMS = ['garmin', 'fitbit', 'whoop'];
-
 const getFitFeedToken = () => localStorage.getItem('fitfeed_token');
 
-/**
- * Discovers which platform is connected by probing each supported platform.
- * NEVER throws — always returns a safe object so callers need no try/catch.
- *
- * @returns {{ connectedPlatform: string|null, displayName: string|null, data: object|null }}
- */
-export const getConnectedDevice = async () => {
-  const token = getFitFeedToken();
-  // No token stored — silently report no connection
-  if (!token) return { connectedPlatform: null, displayName: null, data: null };
+// Format date as YYYY-MM-DD (matches PeloHub's fmtDate)
+const fmtDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-  for (const platform of SUPPORTED_PLATFORMS) {
-    try {
-      const response = await axios.get(`${FIT_FEED_BASE}/v2/check`, {
-        params: { platform },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.data && !response.data.error) {
-        return {
-          connectedPlatform: platform,
-          displayName: PLATFORM_DISPLAY_NAMES[platform] ?? platform,
-          data: response.data,
-        };
-      }
-    } catch (_) {
-      // 4xx / network error = not connected on this platform, try next
-    }
-  }
-
-  return { connectedPlatform: null, displayName: null, data: null };
+const getWeekStart = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 6);
+  d.setHours(0, 0, 0, 0);
+  return d;
 };
 
+// Fire an authenticated GET; returns parsed JSON or null on any failure
+const authGet = (path, token) =>
+  axios
+    .get(`${FIT_FEED_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => r.data)
+    .catch(() => null);
+
+// Most-recent entry from an array response, or the object itself
+const latest = (data) => (Array.isArray(data) ? data[0] ?? null : data);
+
 /**
- * Returns raw health/activity data for a specific connected platform.
- * Pass existingData (from getConnectedDevice) to avoid a duplicate request.
- * NEVER throws — returns null on any failure.
+ * Fetches biology data from PeloHub for a given Peloton user ID.
+ *
+ * Endpoint pattern:  /fit-feed/<platform>/api/<type>/<userId>?start=YYYY-MM-DD&end=YYYY-MM-DD
+ * Platforms tried:   whoop -> garmin (first platform with data wins)
+ *
+ * NEVER throws -- always returns a safe object so callers need no try/catch.
+ *
+ * @param {string} userId - Peloton user ID (e.g. from /api/me or member search)
+ * @returns {{ platform, displayName, sleep_score, recovery_score, hrv, resting_heart_rate, raw_sleep, raw_recovery }}
  */
-export const getDeviceMetrics = async (platform, existingData = null) => {
-  if (existingData) return existingData;
+export const getPeloHubBioData = async (userId) => {
+  const NULL_RESULT = {
+    platform: null,
+    displayName: null,
+    sleep_score: null,
+    recovery_score: null,
+    hrv: null,
+    resting_heart_rate: null,
+    raw_sleep: null,
+    raw_recovery: null,
+  };
+
   const token = getFitFeedToken();
-  if (!token) return null;
-  try {
-    const response = await axios.get(`${FIT_FEED_BASE}/v2/check`, {
-      params: { platform },
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data ?? null;
-  } catch (_) {
-    return null;
+  if (!token || !userId) return NULL_RESULT;
+
+  const end = fmtDate(new Date());
+  const start = fmtDate(getWeekStart());
+  const q = `?start=${start}&end=${end}`;
+
+  // --- Whoop ---
+  const [whoopRecovery, whoopSleep] = await Promise.all([
+    authGet(`/whoop/api/recovery/${userId}${q}`, token),
+    authGet(`/whoop/api/sleep/${userId}${q}`, token),
+  ]);
+
+  if (whoopRecovery || whoopSleep) {
+    const rec = latest(whoopRecovery);
+    const slp = latest(whoopSleep);
+    return {
+      platform: 'whoop',
+      displayName: 'Whoop',
+      // sleep_performance_percentage is Whoop's primary sleep quality score (0-100)
+      sleep_score: slp?.sleep_performance_percentage ?? null,
+      recovery_score: rec?.recovery_score ?? null,
+      // hrv_rmssd_milli is already in ms
+      hrv: rec?.hrv_rmssd_milli != null ? Math.round(rec.hrv_rmssd_milli) : null,
+      resting_heart_rate: rec?.resting_heart_rate ?? null,
+      raw_sleep: whoopSleep,
+      raw_recovery: whoopRecovery,
+    };
   }
+
+  // --- Garmin ---
+  const [garminSleep, garminRecovery] = await Promise.all([
+    authGet(`/garmin/api/sleep/${userId}${q}`, token),
+    authGet(`/garmin/api/recovery/${userId}${q}`, token),
+  ]);
+
+  if (garminSleep || garminRecovery) {
+    const slp = latest(garminSleep);
+    const rec = latest(garminRecovery);
+    return {
+      platform: 'garmin',
+      displayName: 'Garmin',
+      sleep_score: slp?.overall_sleep_score ?? null,
+      recovery_score: rec?.recovery_score ?? slp?.body_battery_charged_value ?? null,
+      hrv: slp?.average_hrv_value ?? rec?.last_night_avg_hrv ?? null,
+      resting_heart_rate: rec?.resting_heart_rate ?? slp?.average_respiration_value ?? null,
+      raw_sleep: garminSleep,
+      raw_recovery: garminRecovery,
+    };
+  }
+
+  return NULL_RESULT;
 };

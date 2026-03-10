@@ -50,7 +50,7 @@ import {
   Award
 } from 'lucide-react';
 import { getUserProfile, getAllWorkoutHistory, enrichWorkoutsWithPerformance, enrichStrengthDetails, calculateMetrics, searchUsers, getUserGoals, getUserTargets, setUserGoal as updateUserGoalStorage, setUserTargets as updateUserTargetsStorage, AVAILABLE_GOALS, calculateWeeklyProgress, calculateWeeklyHistory, filterWorkoutsByCategory, filterWorkoutsByPeriod, calculateTimeByDiscipline, calculateTrainingLoad, calculateActiveDaysCalendar, calculateCaloriesInPeriod, calculateHRZoneBalance, calculateCardioFocus, calculateStreaks, aggregateWorkoutsForChart, aggregateAvgMetricForChart, deriveMaxHR, deriveHRZones, CARDIO_SUBDISCIPLINES, filterWorkoutsBySubDiscipline, calculateDistance, calculateAvgPaceSpeed, calculateAvgOutput, calculatePersonalRecords, estimateCriticalPace, calculateInclineStats, calculateElevationGain, estimateFTP, calculateCadenceStats, calculateResistanceStats, calculatePowerRatio, estimateRowingFTP, calculateStrokeStats, calculateAvgStrokeOutput, calculatePaceSplitByDiscipline, calculateStrengthMetrics, estimateMovement10RM } from '../services/pelotonAPI';
-import { getConnectedDevice, getDeviceMetrics } from '../services/fitFeedAPI';
+import { getPeloHubBioData } from '../services/fitFeedAPI';
 
 // --- UI Primitives (Liquid Glass Style) ---
 
@@ -2252,25 +2252,27 @@ const FitnessDetails = ({ workouts, workoutData, maxHR, hrZones, totalWorkoutCou
   );
 };
 
-const BodyMetrics = () => {
+const BodyMetrics = ({ userId }) => {
   const [loading, setLoading] = useState(true);
   const [deviceName, setDeviceName] = useState(null);
-  const [connectedPlatform, setConnectedPlatform] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [noConnection, setNoConnection] = useState(false);
 
   useEffect(() => {
+    if (!userId) { setNoConnection(true); setLoading(false); return; }
+    setLoading(true);
+    setNoConnection(false);
+    setMetrics(null);
+    setDeviceName(null);
     const fetchData = async () => {
-      const { connectedPlatform: platform, displayName, data } = await getConnectedDevice();
-      if (!platform) { setNoConnection(true); setLoading(false); return; }
-      setConnectedPlatform(platform);
-      setDeviceName(displayName);
-      const metrics = await getDeviceMetrics(platform, data);
-      setMetrics(metrics);
+      const bio = await getPeloHubBioData(userId);
+      if (!bio.platform) { setNoConnection(true); setLoading(false); return; }
+      setDeviceName(bio.displayName);
+      setMetrics(bio);
       setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [userId]);
 
   // Safely extract a metric; fall back to —
   const get = (field) => {
@@ -2383,19 +2385,22 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
   const criticalPace = enriching ? null : estimateCriticalPace(workouts || []);
   const rowFtp = enriching ? null : estimateRowingFTP(workouts || []);
 
-  // Connected device state for Sleep / Readiness source labels + raw scores
+  // PeloHub bio data for Sleep / Readiness source labels + raw scores
   const [deviceName, setDeviceName] = useState(null);
   const [deviceMetrics, setDeviceMetrics] = useState(null);
 
   useEffect(() => {
+    if (!userProfile?.id) return;
+    setDeviceName(null);
+    setDeviceMetrics(null);
     const fetchDevice = async () => {
-      const { connectedPlatform: platform, displayName, data } = await getConnectedDevice();
-      if (!platform) return;
-      setDeviceName(displayName);
-      setDeviceMetrics(await getDeviceMetrics(platform, data));
+      const bio = await getPeloHubBioData(userProfile.id);
+      if (!bio.platform) return;
+      setDeviceName(bio.displayName);
+      setDeviceMetrics(bio);
     };
     fetchDevice();
-  }, []);
+  }, [userProfile?.id]);
 
   const cardioDetails = [];
   if (enriching) {
@@ -2416,9 +2421,9 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
     }
   }
 
-  // Raw scores from 3P device; fall back to null (shows — in ScorecardItem)
+  // Raw scores from PeloHub; fall back to null (shows — in ScorecardItem)
   const rawSleepScore = deviceMetrics?.sleep_score ?? null;
-  const rawReadinessScore = deviceMetrics?.readiness_score ?? deviceMetrics?.recovery_score ?? null;
+  const rawReadinessScore = deviceMetrics?.recovery_score ?? null;
 
   // Normalize a 0-100 raw score to a 1-5 bar count
   const normalizeTo5 = (raw) => raw !== null ? Math.max(1, Math.min(5, Math.round(raw / 20))) : 3;
@@ -2839,7 +2844,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
             enriching={enriching}
             enrichProgress={enrichProgress}
           />
-          <BodyMetrics />
+          <BodyMetrics userId={selectedUser?.id} />
         </section>
 
       </main>
