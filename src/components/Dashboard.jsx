@@ -2261,19 +2261,13 @@ const BodyMetrics = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const { connectedPlatform: platform, displayName } = await getConnectedDevice();
-        if (!platform) { setNoConnection(true); setLoading(false); return; }
-        setConnectedPlatform(platform);
-        setDeviceName(displayName);
-        const data = await getDeviceMetrics(platform);
-        setMetrics(data);
-      } catch (err) {
-        console.error('Fit-feed body metrics error:', err);
-        setNoConnection(true);
-      } finally {
-        setLoading(false);
-      }
+      const { connectedPlatform: platform, displayName, data } = await getConnectedDevice();
+      if (!platform) { setNoConnection(true); setLoading(false); return; }
+      setConnectedPlatform(platform);
+      setDeviceName(displayName);
+      const metrics = await getDeviceMetrics(platform, data);
+      setMetrics(metrics);
+      setLoading(false);
     };
     fetchData();
   }, []);
@@ -2395,15 +2389,10 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
 
   useEffect(() => {
     const fetchDevice = async () => {
-      try {
-        const { connectedPlatform: platform, displayName } = await getConnectedDevice();
-        if (!platform) return;
-        setDeviceName(displayName);
-        const data = await getDeviceMetrics(platform);
-        setDeviceMetrics(data);
-      } catch (err) {
-        console.error('Fit-feed scorecard error:', err);
-      }
+      const { connectedPlatform: platform, displayName, data } = await getConnectedDevice();
+      if (!platform) return;
+      setDeviceName(displayName);
+      setDeviceMetrics(await getDeviceMetrics(platform, data));
     };
     fetchDevice();
   }, []);

@@ -13,15 +13,15 @@ const SUPPORTED_PLATFORMS = ['garmin', 'fitbit'];
 const getFitFeedToken = () => localStorage.getItem('fitfeed_token');
 
 /**
- * Discovers which platform is connected by probing each supported platform
- * directly via GET /v2/check?platform=X.
- * (POST /check requires alpha enrollment and is skipped.)
+ * Discovers which platform is connected by probing each supported platform.
+ * NEVER throws — always returns a safe object so callers need no try/catch.
  *
  * @returns {{ connectedPlatform: string|null, displayName: string|null, data: object|null }}
  */
 export const getConnectedDevice = async () => {
   const token = getFitFeedToken();
-  if (!token) throw new Error('No fit-feed token');
+  // No token stored — silently report no connection
+  if (!token) return { connectedPlatform: null, displayName: null, data: null };
 
   for (const platform of SUPPORTED_PLATFORMS) {
     try {
@@ -29,7 +29,6 @@ export const getConnectedDevice = async () => {
         params: { platform },
         headers: { Authorization: `Bearer ${token}` },
       });
-      // A response without an error field means this platform is connected
       if (response.data && !response.data.error) {
         return {
           connectedPlatform: platform,
@@ -37,8 +36,8 @@ export const getConnectedDevice = async () => {
           data: response.data,
         };
       }
-    } catch (err) {
-      // 4xx = not connected — try next platform
+    } catch (_) {
+      // 4xx / network error = not connected on this platform, try next
     }
   }
 
@@ -48,14 +47,19 @@ export const getConnectedDevice = async () => {
 /**
  * Returns raw health/activity data for a specific connected platform.
  * Pass existingData (from getConnectedDevice) to avoid a duplicate request.
+ * NEVER throws — returns null on any failure.
  */
 export const getDeviceMetrics = async (platform, existingData = null) => {
   if (existingData) return existingData;
   const token = getFitFeedToken();
-  if (!token) throw new Error('No fit-feed token');
-  const response = await axios.get(`${FIT_FEED_BASE}/v2/check`, {
-    params: { platform },
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return response.data;
+  if (!token) return null;
+  try {
+    const response = await axios.get(`${FIT_FEED_BASE}/v2/check`, {
+      params: { platform },
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data ?? null;
+  } catch (_) {
+    return null;
+  }
 };
