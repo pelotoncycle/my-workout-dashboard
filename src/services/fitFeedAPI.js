@@ -9,17 +9,19 @@ export const PLATFORM_DISPLAY_NAMES = {
   oura: 'Oura Ring',
 };
 
+const getFitFeedToken = () => localStorage.getItem('fitfeed_token');
+
 /**
- * Calls POST /fit-feed/check with the user's bearer token.
+ * Calls POST /fit-feed/check with the fit-feed Auth0 token.
  * Returns which third-party platform (if any) is connected.
- *
- * @returns {{ connectedPlatform: string|null, displayName: string|null }}
  */
-export const getConnectedDevice = async (authToken) => {
+export const getConnectedDevice = async () => {
+  const token = getFitFeedToken();
+  if (!token) throw new Error('No fit-feed token');
   const response = await axios.post(
     `${FIT_FEED_BASE}/check`,
     {},
-    { headers: { Authorization: `Bearer ${authToken}` } }
+    { headers: { Authorization: `Bearer ${token}` } }
   );
   const { enabledIntegrations = {} } = response.data;
   const connectedPlatform =
@@ -33,17 +35,15 @@ export const getConnectedDevice = async (authToken) => {
 };
 
 /**
- * Calls GET /fit-feed/v2/check?platform=X with the user's bearer token.
+ * Calls GET /fit-feed/v2/check?platform=X with the fit-feed Auth0 token.
  * Returns raw health/activity data from the connected device.
- *
- * @param {string} authToken
- * @param {string} platform  e.g. 'whoop', 'garmin', 'fitbit', 'oura'
- * @returns {object} raw response data
  */
-export const getDeviceMetrics = async (authToken, platform) => {
+export const getDeviceMetrics = async (platform) => {
+  const token = getFitFeedToken();
+  if (!token) throw new Error('No fit-feed token');
   const response = await axios.get(`${FIT_FEED_BASE}/v2/check`, {
     params: { platform },
-    headers: { Authorization: `Bearer ${authToken}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
 };
