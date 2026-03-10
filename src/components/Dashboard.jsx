@@ -1278,6 +1278,52 @@ const HRZoneBar = ({ zones }) => {
   );
 };
 
+// --- Sleep Stages Bar ---
+const SLEEP_STAGE_COLORS = {
+  Light: '#60A5FA',
+  REM:   '#A78BFA',
+  Deep:  '#1D4ED8',
+  Awake: '#4B5563',
+};
+
+const SleepStagesBar = ({ lightMins, remMins, deepMins, awakeMins }) => {
+  const stages = [
+    { name: 'Light', mins: lightMins },
+    { name: 'REM',   mins: remMins   },
+    { name: 'Deep',  mins: deepMins  },
+    { name: 'Awake', mins: awakeMins },
+  ].filter((s) => s.mins != null && s.mins > 0);
+
+  const total = stages.reduce((sum, s) => sum + s.mins, 0);
+  if (!total) return <p className="text-[10px] text-gray-600 mt-2">No stage data</p>;
+
+  return (
+    <div className="space-y-2 mt-3">
+      <div className="flex h-3 rounded-full overflow-hidden">
+        {stages.map((s) => (
+          <div
+            key={s.name}
+            style={{ width: `${(s.mins / total * 100).toFixed(1)}%`, backgroundColor: SLEEP_STAGE_COLORS[s.name] }}
+            className="transition-all"
+            title={`${s.name}: ${Math.floor(s.mins / 60)}h ${s.mins % 60}m`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {stages.map((s) => (
+          <span key={s.name} className="flex items-center gap-1 text-[9px] text-gray-400">
+            <span className="w-2 h-2 rounded-sm inline-block flex-shrink-0" style={{ backgroundColor: SLEEP_STAGE_COLORS[s.name] }} />
+            <span className="text-gray-500">{s.name}</span>
+            <span className="font-medium text-gray-300">
+              {Math.floor(s.mins / 60) > 0 ? `${Math.floor(s.mins / 60)}h ${s.mins % 60}m` : `${s.mins % 60}m`}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // --- Cardio Focus Chart ---
 const CardioFocusChart = ({ data, enriching, enrichProgress }) => {
   if (!data) {
@@ -2365,20 +2411,29 @@ const BodyMetrics = ({ userId }) => {
           {/* ── Sleep ── */}
           {activeTab === 'Sleep' && (
             <div className="grid grid-cols-2 gap-3">
-              <MetricTile label="Sleep Score"       value={v('sleep_score')}       unit=""   subtext="Last night" />
-              <MetricTile label="Duration"          value={v('sleep_duration')}    unit=""   subtext="Last night" />
-              <MetricTile label="Light Sleep"       value={v('sleep_light')}       unit=""   subtext="Last night" />
-              <MetricTile label="REM Sleep"         value={v('sleep_rem')}         unit=""   subtext="Last night" />
-              <MetricTile label="Deep Sleep"        value={v('sleep_deep')}        unit=""   subtext="Last night" />
-              <MetricTile label="Time Awake"        value={v('sleep_awake')}       unit=""   subtext="Last night" />
+              <MetricTile label="Sleep Score"  value={v('sleep_score')}  unit=""  subtext="7-day avg" />
+              {/* Sleep Duration tile spans full width and contains the stages bar */}
+              <div className="col-span-2 bg-white/5 border border-white/5 rounded-2xl p-4 hover:bg-white/10 transition-colors">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Sleep Duration</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-bold text-white">{v('sleep_duration')}</span>
+                  <span className="text-xs text-gray-500 font-medium">7-day avg</span>
+                </div>
+                <SleepStagesBar
+                  lightMins={bio?.sleep_light_mins}
+                  remMins={bio?.sleep_rem_mins}
+                  deepMins={bio?.sleep_deep_mins}
+                  awakeMins={bio?.sleep_awake_mins}
+                />
+              </div>
               {bio?.sleep_efficiency != null
-                ? <MetricTile label="Efficiency"    value={v('sleep_efficiency')}  unit="%"  subtext="Last night" />
+                ? <MetricTile label="Efficiency"   value={Math.round(v('sleep_efficiency'))} unit="%" subtext="7-day avg" />
                 : unavailable('Efficiency', '%', 'Whoop only')}
               {bio?.sleep_consistency != null
-                ? <MetricTile label="Consistency"   value={v('sleep_consistency')} unit="%"  subtext="Last night" />
+                ? <MetricTile label="Consistency"  value={v('sleep_consistency')} unit="%" subtext="7-day avg" />
                 : unavailable('Consistency', '%', 'Whoop only')}
-              <MetricTile label="Disturbances"      value={v('sleep_disturbances')} unit=""  subtext="Last night" />
-              <MetricTile label="Sleep Cycles"      value={v('sleep_cycles')}      unit=""   subtext="Last night" />
+              <MetricTile label="Disturbances" value={v('sleep_disturbances')} unit=""  subtext="7-day avg" />
+              <MetricTile label="Sleep Cycles" value={v('sleep_cycles')}       unit=""  subtext="7-day avg" />
             </div>
           )}
 
