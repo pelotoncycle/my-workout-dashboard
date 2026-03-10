@@ -2,13 +2,17 @@ import axios from 'axios';
 
 const FIT_FEED_BASE = '/fit-feed';
 
-// Only garmin and fitbit are supported by the /v2/check endpoint
+// All platforms confirmed to exist on /v2/check (return 401 when unauthenticated)
 export const PLATFORM_DISPLAY_NAMES = {
   garmin: 'Garmin',
   fitbit: 'Fitbit',
+  whoop: 'Whoop',
+  oura: 'Oura Ring',
+  apple_health: 'Apple Health',
+  polar: 'Polar',
 };
 
-const SUPPORTED_PLATFORMS = ['garmin', 'fitbit'];
+const SUPPORTED_PLATFORMS = ['garmin', 'fitbit', 'whoop', 'oura', 'apple_health', 'polar'];
 
 const getFitFeedToken = () => localStorage.getItem('fitfeed_token');
 
