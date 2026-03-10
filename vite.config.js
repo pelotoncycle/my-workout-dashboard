@@ -10,6 +10,11 @@ export default defineConfig({
         target: 'https://api.onepeloton.com',
         changeOrigin: true,
         secure: true,
+      },
+      '/fit-feed': {
+        target: 'https://fit-feed.ge.onepeloton.com',
+        changeOrigin: true,
+        secure: true,
       }
     }
   }

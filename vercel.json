@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://api.onepeloton.com/api/:path*"
+    },
+    {
+      "source": "/fit-feed/:path*",
+      "destination": "https://fit-feed.ge.onepeloton.com/:path*"
     }
   ]
 }

@@ -2252,33 +2252,79 @@ const FitnessDetails = ({ workouts, workoutData, maxHR, hrZones, totalWorkoutCou
 };
 
 const BodyMetrics = () => {
+  const [loading, setLoading] = useState(true);
+  const [deviceName, setDeviceName] = useState(null);
+  const [connectedPlatform, setConnectedPlatform] = useState(null);
+  const [metrics, setMetrics] = useState(null);
+  const [noConnection, setNoConnection] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) { setNoConnection(true); setLoading(false); return; }
+        const { connectedPlatform: platform, displayName } = await getConnectedDevice(token);
+        if (!platform) { setNoConnection(true); setLoading(false); return; }
+        setConnectedPlatform(platform);
+        setDeviceName(displayName);
+        const data = await getDeviceMetrics(token, platform);
+        setMetrics(data);
+      } catch (err) {
+        console.error('Fit-feed body metrics error:', err);
+        setNoConnection(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Safely extract a metric; fall back to —
+  const get = (field) => {
+    const val = metrics?.[field];
+    return (val !== undefined && val !== null) ? val : '—';
+  };
+
   return (
     <GlassCard className="h-full">
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 border border-purple-500/20"><Activity size={20} /></div>
           <div>
-              <h2 className="text-xl font-bold text-white">Body Metrics</h2>
-              <p className="text-xs text-purple-300 mt-0.5 font-medium flex items-center gap-1">Synced from your Oura ring</p>
+            <h2 className="text-xl font-bold text-white">Body Metrics</h2>
+            {loading ? (
+              <p className="text-xs text-gray-500 mt-0.5">Loading…</p>
+            ) : deviceName ? (
+              <p className="text-xs text-purple-300 mt-0.5 font-medium flex items-center gap-1">
+                Synced from {deviceName}
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-0.5">No connected device set up</p>
+            )}
           </div>
         </div>
         <button className="text-xs text-gray-500 hover:text-white flex items-center gap-1">View More <ChevronRight size={12} /></button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
-         <div className="col-span-2"><IQInsight text="Your HRV is trending up, showing excellent recovery and adaptation to your recent training load." /></div>
-
-         <MetricTile label="VO2 Max" value="48" unit="ml/kg" subtext="Excellent for age" />
-         <MetricTile label="Resting HR" value="52" unit="bpm" subtext="Last 7 Days" />
-
-         <MetricTile label="HR Recovery" value="38" unit="bpm" subtext="After 1 min" />
-         <MetricTile label="HRV" value="65" unit="ms" subtext="Nightly Avg" />
-
-         <MetricTile label="Weight" value="189.2" unit="lbs" subtext="-0.5 this week" />
-         <MetricTile label="Muscle Mass" value="145.5" unit="lbs" subtext="+0.2 this month" />
-
-         <MetricTile label="Cycle Phase" value="Follicular" unit="" subtext="Day 8 of 28" className="col-span-2 bg-pink-500/10 border-pink-500/20" />
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-40 text-gray-500 text-sm">Loading body metrics…</div>
+      ) : noConnection ? (
+        <div className="flex flex-col items-center justify-center h-40 gap-3 text-center px-4">
+          <p className="text-gray-400 text-sm font-medium">No connected device set up</p>
+          <p className="text-gray-600 text-xs max-w-[220px] leading-relaxed">
+            Connect Whoop, Garmin, or Fitbit via the Peloton app to sync body metrics here.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
+          <MetricTile label="VO2 Max" value={get('vo2_max')} unit="ml/kg" subtext="" />
+          <MetricTile label="Resting HR" value={get('resting_heart_rate')} unit="bpm" subtext="Last 7 Days" />
+          <MetricTile label="HR Recovery" value={get('hr_recovery')} unit="bpm" subtext="After 1 min" />
+          <MetricTile label="HRV" value={get('hrv')} unit="ms" subtext="Nightly Avg" />
+          <MetricTile label="Weight" value={get('weight')} unit="lbs" subtext="" />
+          <MetricTile label="Sleep Score" value={get('sleep_score')} unit="" subtext="" />
+        </div>
+      )}
     </GlassCard>
   );
 };
@@ -2344,6 +2390,27 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
   const criticalPace = enriching ? null : estimateCriticalPace(workouts || []);
   const rowFtp = enriching ? null : estimateRowingFTP(workouts || []);
 
+  // Connected device state for Sleep / Readiness source labels + raw scores
+  const [deviceName, setDeviceName] = useState(null);
+  const [deviceMetrics, setDeviceMetrics] = useState(null);
+
+  useEffect(() => {
+    const fetchDevice = async () => {
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+        const { connectedPlatform: platform, displayName } = await getConnectedDevice(token);
+        if (!platform) return;
+        setDeviceName(displayName);
+        const data = await getDeviceMetrics(token, platform);
+        setDeviceMetrics(data);
+      } catch (err) {
+        console.error('Fit-feed scorecard error:', err);
+      }
+    };
+    fetchDevice();
+  }, []);
+
   const cardioDetails = [];
   if (enriching) {
     cardioDetails.push({ label: 'Loading...', value: '...' });
@@ -2362,6 +2429,13 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
       cardioDetails.push({ label: 'FTP / Critical Pace', value: 'Need 20+ min workouts' });
     }
   }
+
+  // Raw scores from 3P device; fall back to null (shows — in ScorecardItem)
+  const rawSleepScore = deviceMetrics?.sleep_score ?? null;
+  const rawReadinessScore = deviceMetrics?.readiness_score ?? deviceMetrics?.recovery_score ?? null;
+
+  // Normalize a 0-100 raw score to a 1-5 bar count
+  const normalizeTo5 = (raw) => raw !== null ? Math.max(1, Math.min(5, Math.round(raw / 20))) : 3;
 
   const metrics = [
     {
@@ -2384,22 +2458,22 @@ const ScorecardSection = ({ workoutData, workouts, enriching, userProfile }) => 
     },
     {
       title: "Sleep",
-      score: 3,
-      scoreLabel: "Fair",
-      trend: "down",
+      score: normalizeTo5(rawSleepScore),
+      scoreLabel: rawSleepScore !== null ? String(rawSleepScore) : '—',
+      trend: "neutral",
       color: "text-indigo-400",
       icon: Moon,
-      source: "Synced from Oura ring",
+      source: deviceName ? `Synced from ${deviceName}` : null,
       details: []
     },
     {
       title: "Readiness",
-      score: 5,
-      scoreLabel: "Excellent",
-      trend: "up",
+      score: normalizeTo5(rawReadinessScore),
+      scoreLabel: rawReadinessScore !== null ? String(rawReadinessScore) : '—',
+      trend: "neutral",
       color: "text-green-400",
       icon: Activity,
-      source: "Synced from Oura ring",
+      source: deviceName ? `Synced from ${deviceName}` : null,
       details: []
     }
   ];
