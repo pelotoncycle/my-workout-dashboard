@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 const Login = ({ onLogin }) => {
   const [token, setToken] = useState('');
-  const [fitFeedToken, setFitFeedToken] = useState('');
-  const [showFitFeed, setShowFitFeed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -15,7 +13,7 @@ const Login = ({ onLogin }) => {
     }
     setLoading(true);
     try {
-      await onLogin(token, fitFeedToken.trim() || null);
+      await onLogin(token.trim());
     } catch (error) {
       setLoading(false);
     }
@@ -44,12 +42,11 @@ const Login = ({ onLogin }) => {
 
             <h1 className="text-white font-bold text-2xl text-center mb-2">Welcome Back</h1>
             <p className="text-gray-400 text-center mb-8 text-sm">
-              Enter your Peloton API bearer token to continue
+              Enter your Peloton Bearer token to continue
             </p>
 
             <form onSubmit={handleSubmit}>
-              {/* Peloton bearer token */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">
                   Peloton Bearer Token
                 </label>
@@ -61,47 +58,8 @@ const Login = ({ onLogin }) => {
                   disabled={loading}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Your token will be stored locally in your browser
+                  Your token is stored locally in your browser only.
                 </p>
-              </div>
-
-              {/* Optional fit-feed token */}
-              <div className="mb-6">
-                <button
-                  type="button"
-                  onClick={() => setShowFitFeed(!showFitFeed)}
-                  className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors font-semibold uppercase tracking-wider mb-2"
-                >
-                  {showFitFeed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                  Connected Device Token (optional)
-                </button>
-
-                {showFitFeed && (
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                    <textarea
-                      value={fitFeedToken}
-                      onChange={(e) => setFitFeedToken(e.target.value)}
-                      placeholder="eyJhbGci... (Auth0 JWT from fit-feed.ge.onepeloton.com)"
-                      className="w-full bg-black/20 border border-purple-500/20 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-purple-500/50 min-h-[100px] font-mono"
-                      disabled={loading}
-                    />
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Log in at{' '}
-                      <a
-                        href="https://fit-feed.ge.onepeloton.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-purple-400 hover:text-purple-300 underline"
-                      >
-                        fit-feed.ge.onepeloton.com
-                      </a>
-                      , then copy the Auth0 JWT from{' '}
-                      <span className="font-mono text-gray-400">
-                        DevTools → Application → Local Storage
-                      </span>
-                    </p>
-                  </div>
-                )}
               </div>
 
               <button

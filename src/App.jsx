@@ -19,17 +19,12 @@ function App() {
     setLoading(false);
   }, []);
 
-  const handleLogin = async (token, fitFeedToken) => {
+  const handleLogin = async (token) => {
     try {
       setAuthToken(token);
       const userData = await getMe();
       localStorage.setItem('peloton_token', token);
       localStorage.setItem('peloton_user', JSON.stringify(userData));
-      if (fitFeedToken) {
-        localStorage.setItem('fitfeed_token', fitFeedToken);
-      } else {
-        localStorage.removeItem('fitfeed_token');
-      }
       setCurrentUser(userData);
       setIsAuthenticated(true);
     } catch (error) {
@@ -42,7 +37,6 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('peloton_token');
     localStorage.removeItem('peloton_user');
-    localStorage.removeItem('fitfeed_token');
     setAuthToken(null);
     setCurrentUser(null);
     setIsAuthenticated(false);
