@@ -7,13 +7,15 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     proxy: {
-      // Auth login endpoint lives at /auth/login (not under /api)
-      '/auth': {
-        target: 'https://api.onepeloton.com',
-        changeOrigin: true,
-        secure: true,
-        cookieDomainRewrite: '',
+      // Local auth server (Node.js, port 3001) — handles email/password login
+      // by calling Peloton's internal auth-self-service from within the cluster.
+      // This bypasses Cloudflare's server-side request blocking on /auth/login.
+      '/local-auth': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: false,
+        rewrite: (path) => path.replace(/^\/local-auth/, ''),
       },
+      // Main Peloton API — Bearer token set after login
       '/api': {
         target: 'https://api.onepeloton.com',
         changeOrigin: true,
@@ -25,7 +27,7 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
         cookieDomainRewrite: '',
-      }
-    }
-  }
+      },
+    },
+  },
 })

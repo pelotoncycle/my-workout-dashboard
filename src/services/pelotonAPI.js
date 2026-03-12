@@ -4,37 +4,50 @@ import axios from 'axios';
 const PELOTON_API_BASE = '';
 
 // ---------------------------------------------------------------------------
-// Auth — session-cookie based (no manual token pasting required)
-// POST /auth/login → Peloton sets peloton_session_id cookie via Vite proxy.
-// cookieDomainRewrite in vite.config.js rewrites the domain to localhost so
-// the browser stores it, and Vite forwards it on every subsequent request.
+// Auth — port-authority JWT Bearer token
+//
+// api.onepeloton.com/auth/login is Cloudflare-protected and blocks server-side
+// requests (the Vite proxy runs in Node.js, not in the browser). To work
+// around this, we call a local auth server (auth-server.js, port 3001) that
+// calls Peloton's internal auth-self-service from within the cluster.
+// Vite proxies /local-auth → localhost:3001.
+//
+// The returned JWT is stored in memory and injected as Authorization: Bearer
+// on every subsequent /api/* call.
 // ---------------------------------------------------------------------------
 
-// Legacy no-op exports kept for any import sites that still reference them.
-export const setAuthToken = (_token) => {};
-export const getAuthToken = () => null;
+let authToken = null;
+
+export const setAuthToken = (token) => {
+  authToken = token;
+};
+
+export const getAuthToken = () => authToken;
 
 /**
- * Login with email + password. Returns { userId, userData }.
- * The Vite proxy rewrites the Set-Cookie domain to localhost so the browser
- * automatically attaches peloton_session_id on all subsequent /api/* calls.
+ * Login with email + password.
+ * Calls the local auth server which generates a port-authority JWT via the
+ * Peloton internal auth-self-service (cluster-internal, bypasses Cloudflare).
+ * Returns { accessToken }.
  */
 export const login = async (email, password) => {
   const response = await axios.post(
-    '/auth/login',
+    '/local-auth/login',
     { username_or_email: email, password },
-    { withCredentials: true }
+    { headers: { 'Content-Type': 'application/json' } }
   );
-  const { user_id, user_data } = response.data;
-  return { userId: user_id, userData: user_data };
+  const { access_token } = response.data;
+  if (!access_token) throw new Error('No access token returned');
+  setAuthToken(access_token);
+  return { accessToken: access_token };
 };
 
-// Create axios instance — session cookie is sent automatically by the browser.
+// Create axios instance with JWT Bearer auth.
 const createAxiosInstance = () => {
   return axios.create({
     baseURL: PELOTON_API_BASE,
-    withCredentials: true,
     headers: {
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       'Content-Type': 'application/json',
     },
   });
