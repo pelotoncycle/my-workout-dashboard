@@ -1,51 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
-import { setAuthToken, getMe } from './services/pelotonAPI';
+import { login, getMe } from './services/pelotonAPI';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // On mount, check if we have a persisted user session (stored after last login).
+  // The actual session cookie is managed by the browser; we just restore the
+  // cached user profile so the Dashboard renders without a round-trip.
   useEffect(() => {
-    const storedToken = localStorage.getItem('peloton_token');
     const storedUser = localStorage.getItem('peloton_user');
-    if (storedToken && storedUser) {
-      setAuthToken(storedToken);
-      setCurrentUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem('peloton_user');
+      }
     }
     setLoading(false);
   }, []);
 
-  const handleLogin = async (token) => {
+  /**
+   * Called by Login when the user submits email + password.
+   * Calls POST /auth/login via the Vite proxy → Peloton sets the session cookie
+   * → we fetch /api/me with that cookie to get the full profile.
+   */
+  const handleLogin = async (email, password) => {
+    // login() POSTs to /auth/login and returns { userId, userData }
+    const { userData } = await login(email, password);
+
+    // userData from the login response is often partial; fetch the full profile.
+    let profile = userData;
     try {
-      setAuthToken(token);
-      const userData = await getMe();
-      localStorage.setItem('peloton_token', token);
-      localStorage.setItem('peloton_user', JSON.stringify(userData));
-      setCurrentUser(userData);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Login failed:', error);
-      alert('Authentication failed. Please check your Peloton token and try again.');
-      throw error;
+      profile = await getMe();
+    } catch {
+      // If /api/me fails for any reason, fall back to the login payload.
     }
+
+    localStorage.setItem('peloton_user', JSON.stringify(profile));
+    setCurrentUser(profile);
+    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('peloton_token');
     localStorage.removeItem('peloton_user');
-    setAuthToken(null);
     setCurrentUser(null);
     setIsAuthenticated(false);
+    // The browser will clear the session cookie naturally on expiry;
+    // optionally we could POST /auth/logout here too.
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="text-white text-xl">Loading…</div>
       </div>
     );
   }

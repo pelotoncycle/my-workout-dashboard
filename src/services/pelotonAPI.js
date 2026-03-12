@@ -3,23 +3,38 @@ import axios from 'axios';
 // Use empty base URL to leverage Vite proxy (configured in vite.config.js)
 const PELOTON_API_BASE = '';
 
-// Store the auth token
-let authToken = null;
+// ---------------------------------------------------------------------------
+// Auth — session-cookie based (no manual token pasting required)
+// POST /auth/login → Peloton sets peloton_session_id cookie via Vite proxy.
+// cookieDomainRewrite in vite.config.js rewrites the domain to localhost so
+// the browser stores it, and Vite forwards it on every subsequent request.
+// ---------------------------------------------------------------------------
 
-export const setAuthToken = (token) => {
-  authToken = token;
+// Legacy no-op exports kept for any import sites that still reference them.
+export const setAuthToken = (_token) => {};
+export const getAuthToken = () => null;
+
+/**
+ * Login with email + password. Returns { userId, userData }.
+ * The Vite proxy rewrites the Set-Cookie domain to localhost so the browser
+ * automatically attaches peloton_session_id on all subsequent /api/* calls.
+ */
+export const login = async (email, password) => {
+  const response = await axios.post(
+    '/auth/login',
+    { username_or_email: email, password },
+    { withCredentials: true }
+  );
+  const { user_id, user_data } = response.data;
+  return { userId: user_id, userData: user_data };
 };
 
-export const getAuthToken = () => {
-  return authToken;
-};
-
-// Create axios instance with auth
+// Create axios instance — session cookie is sent automatically by the browser.
 const createAxiosInstance = () => {
   return axios.create({
     baseURL: PELOTON_API_BASE,
+    withCredentials: true,
     headers: {
-      'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json',
     },
   });
