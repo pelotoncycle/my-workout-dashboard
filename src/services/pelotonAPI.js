@@ -3,23 +3,62 @@ import axios from 'axios';
 // Use empty base URL to leverage Vite proxy (configured in vite.config.js)
 const PELOTON_API_BASE = '';
 
-// Store the auth token
+// ---------------------------------------------------------------------------
+// Auth — port-authority JWT Bearer token
+//
+// api.onepeloton.com/auth/login is Cloudflare-protected and blocks server-side
+// requests (the Vite proxy runs in Node.js, not in the browser). To work
+// around this, we call a local auth server (auth-server.js, port 3001) that
+// calls Peloton's internal auth-self-service from within the cluster.
+// Vite proxies /local-auth → localhost:3001.
+//
+// The returned JWT is stored in memory and injected as Authorization: Bearer
+// on every subsequent /api/* call.
+// ---------------------------------------------------------------------------
+
 let authToken = null;
 
 export const setAuthToken = (token) => {
   authToken = token;
 };
 
-export const getAuthToken = () => {
-  return authToken;
+export const getAuthToken = () => authToken;
+
+/**
+ * Auto-login using vault credentials stored in the Bureau container environment.
+ * Returns { accessToken, hasVaultCreds }.
+ * If vault creds aren't set, returns { accessToken: null, hasVaultCreds: false }
+ * so the caller can fall back to the manual login form.
+ */
+export const autoLogin = async () => {
+  const response = await axios.post('/local-auth/auto-login', {});
+  const { access_token, has_vault_creds, error } = response.data;
+  if (access_token) setAuthToken(access_token);
+  return { accessToken: access_token, hasVaultCreds: has_vault_creds, error };
 };
 
-// Create axios instance with auth
+/**
+ * Manual login with email + password.
+ * Falls back to this when vault creds aren't available.
+ */
+export const login = async (email, password) => {
+  const response = await axios.post(
+    '/local-auth/login',
+    { username_or_email: email, password },
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  const { access_token } = response.data;
+  if (!access_token) throw new Error('No access token returned');
+  setAuthToken(access_token);
+  return { accessToken: access_token };
+};
+
+// Create axios instance with JWT Bearer auth.
 const createAxiosInstance = () => {
   return axios.create({
     baseURL: PELOTON_API_BASE,
     headers: {
-      'Authorization': `Bearer ${authToken}`,
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       'Content-Type': 'application/json',
     },
   });
