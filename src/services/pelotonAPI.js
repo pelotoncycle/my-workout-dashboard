@@ -25,10 +25,21 @@ export const setAuthToken = (token) => {
 export const getAuthToken = () => authToken;
 
 /**
- * Login with email + password.
- * Calls the local auth server which generates a port-authority JWT via the
- * Peloton internal auth-self-service (cluster-internal, bypasses Cloudflare).
- * Returns { accessToken }.
+ * Auto-login using vault credentials stored in the Bureau container environment.
+ * Returns { accessToken, hasVaultCreds }.
+ * If vault creds aren't set, returns { accessToken: null, hasVaultCreds: false }
+ * so the caller can fall back to the manual login form.
+ */
+export const autoLogin = async () => {
+  const response = await axios.post('/local-auth/auto-login', {});
+  const { access_token, has_vault_creds, error } = response.data;
+  if (access_token) setAuthToken(access_token);
+  return { accessToken: access_token, hasVaultCreds: has_vault_creds, error };
+};
+
+/**
+ * Manual login with email + password.
+ * Falls back to this when vault creds aren't available.
  */
 export const login = async (email, password) => {
   const response = await axios.post(

@@ -54,7 +54,7 @@ const Login = ({ onLogin }) => {
 
             <h1 className="text-white font-bold text-2xl text-center mb-2">Welcome Back</h1>
             <p className="text-gray-400 text-center mb-8 text-sm">
-              Sign in with your Peloton account to continue
+              Sign in with your Peloton app account (members.onepeloton.com credentials)
             </p>
 
             <form onSubmit={handleSubmit} noValidate>
