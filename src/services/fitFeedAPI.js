@@ -2,7 +2,10 @@ import axios from 'axios';
 
 const FIT_FEED_BASE = '/fit-feed';
 
-const getFitFeedToken = () => localStorage.getItem('fitfeed_token');
+// Peloton and fit-feed share the same auth.onepeloton.com OIDC provider,
+// so the Peloton Bearer token is accepted by fit-feed directly.
+const getFitFeedToken = () =>
+  localStorage.getItem('peloton_token');
 
 // ─── Date helpers ──────────────────────────────────────────────────────────────
 
